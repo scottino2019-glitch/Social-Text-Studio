@@ -1,0 +1,6 @@
+{
+  "name": "SocialText Studio",
+  "description": "Editor grafico per testi stilizzati, font artistici, effetti, animazioni ed esportazione HD per Instagram e TikTok.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@layer utilities {
+  @keyframes anim-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+  @keyframes anim-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  @keyframes anim-float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-8px) rotate(0.8deg); }
+  }
+  @keyframes anim-neon-blink {
+    0%, 100% { opacity: 1; filter: brightness(1.2); }
+    40% { opacity: 0.95; }
+    42% { opacity: 0.45; }
+    44% { opacity: 0.95; }
+    70% { opacity: 1; }
+    72% { opacity: 0.35; }
+    74% { opacity: 1; }
+  }
+  @keyframes anim-glitch {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-3px, 2px); }
+    40% { transform: translate(3px, -2px); }
+    60% { transform: translate(-2px, -1px); }
+    80% { transform: translate(2px, 1px); }
+  }
+  @keyframes anim-shake {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-2px, 2px) rotate(-1deg); }
+    50% { transform: translate(2px, -2px) rotate(1deg); }
+    75% { transform: translate(-2px, -1px) rotate(-0.5deg); }
+  }
+  @keyframes anim-wave {
+    0%, 100% { transform: skewX(0deg); }
+    50% { transform: skewX(-5deg); }
+  }
+  @keyframes anim-rainbow {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+  }
+
+  .anim-pulse { animation: anim-pulse infinite ease-in-out; }
+  .anim-bounce { animation: anim-bounce infinite cubic-bezier(0.28, 0.84, 0.42, 1); }
+  .anim-float { animation: anim-float infinite ease-in-out; }
+  .anim-neonBlink { animation: anim-neon-blink infinite alternate; }
+  .anim-glitchFlicker { animation: anim-glitch 0.4s infinite alternate; }
+  .anim-shake { animation: anim-shake 0.3s infinite ease-in-out; }
+  .anim-wave { animation: anim-wave infinite ease-in-out; }
+  .anim-rainbowShift { animation: anim-rainbow 3s infinite linear; }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FDFCF5;
+  border-left: 2px solid #000;
+}
+::-webkit-scrollbar-thumb {
+  background: #000;
+  border-radius: 0px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF3366;
+}
