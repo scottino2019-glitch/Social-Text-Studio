@@ -1,4 +1,5 @@
 import confetti from 'canvas-confetti';
+import * as htmlToImage from 'html-to-image';
 import { CanvasElement, CanvasBackground, CanvasFormat } from '../types';
 import { renderGraphicToCanvas } from './canvasRenderer';
 
@@ -10,6 +11,58 @@ export interface ExportOptions {
   filename?: string;
   pixelRatioMultiplier?: number;
   transparentBg?: boolean;
+}
+
+async function captureDomToBlob(opts: ExportOptions): Promise<Blob | null> {
+  const dom = opts.canvasDom || document.getElementById('main-graphic-canvas');
+  if (!dom) return null;
+
+  try {
+    if (document.fonts) {
+      await document.fonts.ready;
+    }
+
+    const clientW = dom.clientWidth || 360;
+    // Calculate exact pixel ratio to match or exceed target resolution
+    const multiplier = opts.pixelRatioMultiplier || 2;
+    // Target width for 1x is format.width, multiplier scales it (e.g. 2x = 2 * format.width)
+    const calcPixelRatio = Math.max(1, (opts.format.width / clientW) * (multiplier / 2));
+
+    const blob = await htmlToImage.toBlob(dom, {
+      pixelRatio: calcPixelRatio,
+      filter: (node: HTMLElement) => {
+        if (node.classList) {
+          if (
+            node.classList.contains('canvas-selection-box') ||
+            node.classList.contains('guideline-snap') ||
+            node.classList.contains('canvas-spec-badge')
+          ) {
+            return false;
+          }
+        }
+        return true;
+      },
+      style: {
+        boxShadow: 'none',
+        border: 'none',
+        borderRadius: '0px',
+        transform: 'none',
+        margin: '0',
+        ...(opts.transparentBg
+          ? {
+              background: 'transparent',
+              backgroundColor: 'transparent',
+              backgroundImage: 'none',
+            }
+          : {}),
+      },
+    });
+
+    return blob;
+  } catch (err) {
+    console.warn('html-to-image capture fallback to canvas:', err);
+    return null;
+  }
 }
 
 export async function exportCanvasToPng(
@@ -49,21 +102,27 @@ export async function exportCanvasToPng(
   const domWidth = opts.canvasDom?.clientWidth || 450;
 
   try {
-    const canvas = await renderGraphicToCanvas({
-      elements: opts.elements,
-      background: opts.background,
-      format: opts.format,
-      scale: opts.pixelRatioMultiplier || 2,
-      transparentBg: opts.transparentBg || false,
-      referenceDomWidth: domWidth,
-    });
+    // 1. Try high-fidelity DOM snapshot first (captures exact Google fonts, native emojis/stickers, CSS gradients & shadows)
+    let blob = await captureDomToBlob(opts);
 
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => {
-        if (b) resolve(b);
-        else reject(new Error('Canvas export to blob failed'));
-      }, 'image/png');
-    });
+    // 2. If DOM snapshot is unavailable, fall back to pure 2D Canvas renderer
+    if (!blob) {
+      const canvas = await renderGraphicToCanvas({
+        elements: opts.elements,
+        background: opts.background,
+        format: opts.format,
+        scale: opts.pixelRatioMultiplier || 2,
+        transparentBg: opts.transparentBg || false,
+        referenceDomWidth: domWidth,
+      });
+
+      blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('Canvas export to blob failed'));
+        }, 'image/png');
+      });
+    }
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -126,21 +185,25 @@ export async function copyCanvasPngToClipboard(
   const domWidth = opts.canvasDom?.clientWidth || 450;
 
   try {
-    const canvas = await renderGraphicToCanvas({
-      elements: opts.elements,
-      background: opts.background,
-      format: opts.format,
-      scale: opts.pixelRatioMultiplier || 2,
-      transparentBg: opts.transparentBg || false,
-      referenceDomWidth: domWidth,
-    });
+    let blob = await captureDomToBlob(opts);
 
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => {
-        if (b) resolve(b);
-        else reject(new Error('Canvas copy to blob failed'));
-      }, 'image/png');
-    });
+    if (!blob) {
+      const canvas = await renderGraphicToCanvas({
+        elements: opts.elements,
+        background: opts.background,
+        format: opts.format,
+        scale: opts.pixelRatioMultiplier || 2,
+        transparentBg: opts.transparentBg || false,
+        referenceDomWidth: domWidth,
+      });
+
+      blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('Canvas copy to blob failed'));
+        }, 'image/png');
+      });
+    }
 
     if (navigator.clipboard && navigator.clipboard.write) {
       await navigator.clipboard.write([

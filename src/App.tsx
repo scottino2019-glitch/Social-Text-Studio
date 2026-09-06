@@ -88,41 +88,54 @@ export default function App() {
     });
   }, []);
 
-  // Add New Text Element
-  const handleAddText = useCallback(() => {
-    const newId = `text-${Date.now()}`;
-    const newElement: CanvasElement = {
-      id: newId,
-      type: 'text',
-      x: 50,
-      y: 50,
-      rotation: 0,
-      scale: 1,
-      opacity: 1,
-      zIndex: elements.length + 1,
-      text: 'NUOVO TESTO SOCIAL',
-      fontFamily: "'Anton', sans-serif",
-      fontSize: 56,
-      fontWeight: '900',
-      color: '#FFFFFF',
-      letterSpacing: 2,
-      lineHeight: 1.1,
-      textAlign: 'center',
-      textTransform: 'uppercase',
-      effect: 'shadow3d',
-      shadowColor: '#FF1361',
-      shadowBlur: 0,
-      shadowOffsetX: 5,
-      shadowOffsetY: 5,
-      animation: 'pulse',
-      animationSpeed: 2,
-    };
+  // Add New Text Element (supports custom text, emojis, and smartphone keyboard stickers)
+  const handleAddText = useCallback(
+    (customText?: string | unknown, stylePreset?: StylePreset) => {
+      const newId = `text-${Date.now()}`;
+      const basePreset = stylePreset;
+      const safeText =
+        typeof customText === 'string' && customText.trim().length > 0
+          ? customText.trim()
+          : 'NUOVO TESTO 🔥';
 
-    const next = [...elements, newElement];
-    setElements(next);
-    setSelectedElementId(newId);
-    pushHistory(next, background, currentFormat);
-  }, [elements, background, currentFormat, pushHistory]);
+      const newElement: CanvasElement = {
+        id: newId,
+        type: 'text',
+        x: 50,
+        y: 50,
+        rotation: 0,
+        scale: 1,
+        opacity: 1,
+        zIndex: elements.length + 1,
+        text: safeText,
+        fontFamily: basePreset?.fontFamily || "'Anton', sans-serif",
+        fontSize: 54,
+        fontWeight: '900',
+        color: basePreset?.color || '#FFFFFF',
+        secondaryColor: basePreset?.secondaryColor,
+        strokeColor: basePreset?.strokeColor,
+        strokeWidth: basePreset?.strokeWidth,
+        shadowColor: basePreset?.shadowColor || '#FF1361',
+        shadowBlur: basePreset?.shadowBlur || 0,
+        shadowOffsetX: basePreset?.shadowOffsetX || 4,
+        shadowOffsetY: basePreset?.shadowOffsetY || 4,
+        letterSpacing: 2,
+        lineHeight: 1.1,
+        textAlign: 'center',
+        textTransform: 'none',
+        effect: basePreset?.effect || 'shadow3d',
+        backgroundColor: basePreset?.backgroundColor,
+        animation: basePreset?.animation || 'pulse',
+        animationSpeed: 2,
+      };
+
+      const next = [...elements, newElement];
+      setElements(next);
+      setSelectedElementId(newId);
+      pushHistory(next, background, currentFormat);
+    },
+    [elements, background, currentFormat, pushHistory]
+  );
 
   // Delete Element
   const handleDeleteElement = useCallback((id: string) => {
@@ -269,12 +282,12 @@ export default function App() {
   const selectedElement = elements.find((el) => el.id === selectedElementId) || null;
 
   return (
-    <div id="social-text-app" className="min-h-screen bg-[#FDFCF5] text-black flex flex-col font-sans selection:bg-[#33FFBB] selection:text-black">
+    <div id="social-text-app" className="h-screen w-screen bg-[#FDFCF5] text-black flex flex-col font-sans selection:bg-[#33FFBB] selection:text-black overflow-hidden">
       {/* Top App Header */}
       <Header
         currentFormat={currentFormat}
         onSelectFormat={handleSelectFormat}
-        onAddText={handleAddText}
+        onAddText={() => handleAddText()}
         canUndo={historyIndex > 0}
         canRedo={historyIndex < history.length - 1}
         onUndo={handleUndo}
@@ -286,8 +299,8 @@ export default function App() {
         isExporting={isExporting}
       />
 
-      {/* Main Workspace Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      {/* Main Workspace Layout - Mobile-first stacked layout (Canvas on top, Controls at bottom) */}
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 w-full">
         {/* Visual Interactive Canvas Stage */}
         <CanvasStage
           canvasRef={canvasRef}
@@ -313,6 +326,9 @@ export default function App() {
           onSelectFormat={handleSelectFormat}
           onApplyTemplate={handleApplyTemplate}
           onApplyStylePreset={handleApplyStylePreset}
+          onDuplicateElement={handleDuplicateElement}
+          onDeleteElement={handleDeleteElement}
+          onReorderElement={handleReorderElement}
         />
       </div>
 

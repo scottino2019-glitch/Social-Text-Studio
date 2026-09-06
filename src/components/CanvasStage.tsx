@@ -5,21 +5,9 @@ import {
   CanvasFormat,
 } from '../types';
 import {
-  Trash2,
-  Copy,
   RotateCw,
-  ArrowUp,
-  ArrowDown,
-  AlignCenter,
-  AlignVerticalSpaceAround,
-  Type,
   Maximize2,
   Check,
-  Minus,
-  Plus,
-  Sliders,
-  X,
-  RotateCcw,
 } from 'lucide-react';
 
 interface CanvasStageProps {
@@ -36,7 +24,40 @@ interface CanvasStageProps {
   isPlayingAnimation: boolean;
 }
 
-const PRESET_FONT_SIZES = [18, 24, 32, 40, 48, 56, 64, 76, 92, 112, 136];
+// Emojis regex matching standard and modern emoji sequences / keyboard stickers
+const EMOJI_REGEX = /(\p{Extended_Pictographic}+|\p{Emoji_Presentation}+)/gu;
+
+function renderFormattedContent(text: string, isGradientOrOutline: boolean) {
+  if (!text) return null;
+  if (!isGradientOrOutline) return <span className="inline-block">{text}</span>;
+
+  const parts = text.split(EMOJI_REGEX);
+  return (
+    <span className="inline-block">
+      {parts.map((part, index) => {
+        const isEmoji = EMOJI_REGEX.test(part);
+        EMOJI_REGEX.lastIndex = 0;
+        if (isEmoji) {
+          return (
+            <span
+              key={index}
+              style={{
+                WebkitTextFillColor: 'initial',
+                WebkitBackgroundClip: 'initial',
+                WebkitTextStroke: '0px transparent',
+                backgroundImage: 'none',
+                display: 'inline-block',
+              }}
+            >
+              {part}
+            </span>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
+}
 
 export const CanvasStage: React.FC<CanvasStageProps> = ({
   canvasRef,
@@ -83,7 +104,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   } | null>(null);
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const [showSizeMenu, setShowSizeMenu] = useState<boolean>(false);
 
   const selectedElement = elements.find((el) => el.id === selectedElementId) || null;
 
@@ -93,8 +113,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     if (!el) return;
 
     const updateDimensions = () => {
-      const availableW = Math.max(260, el.clientWidth - 48);
-      const availableH = Math.max(280, el.clientHeight - 110);
+      // Constant padding so canvas proportions NEVER jump or warp
+      const padX = 24;
+      const padY = 24;
+      const availableW = Math.max(80, el.clientWidth - padX);
+      const availableH = Math.max(80, el.clientHeight - padY);
       const targetRatio = format.width / format.height;
 
       let w = availableW;
@@ -102,18 +125,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       if (h > availableH) {
         h = availableH;
         w = availableH * targetRatio;
-      }
-
-      // Max boundaries for comfortable viewport fitting
-      const maxW = Math.min(availableW, 880);
-      const maxH = Math.min(availableH, 640);
-      if (w > maxW) {
-        w = maxW;
-        h = w / targetRatio;
-      }
-      if (h > maxH) {
-        h = maxH;
-        w = h * targetRatio;
       }
 
       setStageDimensions({
@@ -240,7 +251,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         if (selectedElement) onUpdateElement(selectedElementId, { y: Math.min(100, selectedElement.y + step) });
       } else if (e.key === 'Escape') {
         onSelectElement(null);
-        setShowSizeMenu(false);
       }
     };
 
@@ -307,16 +317,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       elemCenter,
     });
   };
-
-  // Font Size Helpers
-  const handleFontSizeChange = useCallback(
-    (newSize: number) => {
-      if (!selectedElementId) return;
-      const clamped = Math.max(12, Math.min(180, newSize));
-      onUpdateElement(selectedElementId, { fontSize: clamped });
-    },
-    [selectedElementId, onUpdateElement]
-  );
 
   // Render text effect styles
   const getTextStyles = (el: CanvasElement): React.CSSProperties => {
@@ -402,7 +402,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     <div
       ref={containerRef}
       id="canvas-stage-wrapper"
-      className="flex-1 overflow-auto bg-[#EDECE6] p-4 md:p-6 flex flex-col items-center justify-center relative select-none"
+      className="w-full flex-1 h-full min-h-0 min-w-0 overflow-hidden bg-[#EDECE6] p-3 sm:p-4 md:p-6 flex flex-col items-center justify-center relative select-none"
       style={{
         backgroundImage: 'radial-gradient(#00000018 1.5px, transparent 1.5px)',
         backgroundSize: '20px 20px',
@@ -411,12 +411,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         if (e.target === containerRef.current) {
           onSelectElement(null);
           setEditingTextId(null);
-          setShowSizeMenu(false);
         }
       }}
     >
       {/* Floating Canvas Spec Badge */}
-      <div className="absolute top-4 left-4 z-20 bg-white border-2 border-black px-3 py-1 rounded-md text-[10px] font-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black pointer-events-none">
+      <div className="canvas-spec-badge absolute top-4 left-4 z-20 bg-white border-2 border-black px-3 py-1 rounded-md text-[10px] font-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black pointer-events-none">
         CANVAS: {format.width} × {format.height} ({format.aspectRatio})
       </div>
 
@@ -433,19 +432,18 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           if (e.target === canvasRef.current) {
             onSelectElement(null);
             setEditingTextId(null);
-            setShowSizeMenu(false);
           }
         }}
-        className="relative shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] rounded-2xl overflow-hidden border-4 border-black shrink-0 transition-all"
+        className="relative shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] rounded-2xl overflow-hidden border-4 border-black shrink-0"
       >
         {/* Dynamic Guideline Snapping Lines */}
         {isDragging && selectedElement && (
           <>
             {Math.abs(selectedElement.x - 50) < 1.8 && (
-              <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-[#FF3366] pointer-events-none z-40 border-r border-black" />
+              <div className="guideline-snap absolute top-0 bottom-0 left-1/2 w-0.5 bg-[#FF3366] pointer-events-none z-40 border-r border-black" />
             )}
             {Math.abs(selectedElement.y - 50) < 1.8 && (
-              <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-[#FF3366] pointer-events-none z-40 border-b border-black" />
+              <div className="guideline-snap absolute left-0 right-0 top-1/2 h-0.5 bg-[#FF3366] pointer-events-none z-40 border-b border-black" />
             )}
           </>
         )}
@@ -498,7 +496,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 cursor: isDragging && isSelected ? 'grabbing' : 'grab',
                 touchAction: 'none',
               }}
-              className="group select-none inline-block whitespace-pre-wrap"
+              className="select-none inline-block whitespace-pre-wrap"
             >
               {/* Inner wrapper handles font styles, colors, and live animation */}
               <div
@@ -544,13 +542,19 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <span>{elem.text || 'Doppio click per modificare'}</span>
+                  renderFormattedContent(
+                    elem.text || 'Doppio click per modificare',
+                    elem.effect === 'gradient' ||
+                      elem.effect === 'gold' ||
+                      elem.effect === 'chrome' ||
+                      elem.effect === 'outline'
+                  )
                 )}
               </div>
 
               {/* SELECTION BOX DIRECTLY ATTACHED TO TEXT BOUNDS */}
               {isSelected && (
-                <div className="absolute -inset-2.5 border-2 border-dashed border-[#FF3366] rounded-lg pointer-events-none">
+                <div className="canvas-selection-box absolute -inset-2.5 border-2 border-dashed border-[#FF3366] rounded-lg pointer-events-none">
                   {/* Rotation Handle (Top Center) */}
                   <button
                     id="rotation-handle-btn"
@@ -582,257 +586,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           );
         })}
       </div>
-
-      {/* DOCKED BOTTOM QUICK ACTION TOOLBAR (STABLE, PERSISTENT & ZERO FOCUS LOSS) */}
-      {selectedElement && (
-        <div
-          id="docked-floating-toolbar"
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          className="mt-4 bg-white border-3 border-black text-black rounded-2xl p-2 flex flex-wrap items-center justify-center gap-2 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] z-50 relative max-w-[95vw]"
-        >
-          {/* 1. Modifica Testo */}
-          <button
-            id="inline-edit-btn"
-            type="button"
-            onClick={() => {
-              setEditingTextId(selectedElement.id);
-              setShowSizeMenu(false);
-            }}
-            className="px-2.5 py-1.5 bg-[#F4F3ED] hover:bg-[#FFD700] border-2 border-black rounded-xl text-black transition-all flex items-center gap-1.5 font-black text-xs cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5"
-            title="Modifica Testo"
-          >
-            <Type className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Modifica</span>
-          </button>
-
-          <div className="w-[2px] h-6 bg-black/20" />
-
-          {/* 2. SELETTORE GRANDEZZA RAPIDO (- / Dimensione / +) */}
-          <div className="flex items-center bg-[#F4F3ED] border-2 border-black rounded-xl p-0.5 relative shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-            {/* Tasto - */}
-            <button
-              id="inline-size-dec-btn"
-              type="button"
-              onClick={() => {
-                const curr = selectedElement.fontSize || 48;
-                handleFontSizeChange(curr - 4);
-              }}
-              className="w-7 h-7 flex items-center justify-center bg-white hover:bg-[#FF3366] hover:text-white rounded-lg border border-black text-black transition-all active:scale-90 cursor-pointer font-black"
-              title="Riduci dimensione (-4px)"
-            >
-              <Minus className="w-3.5 h-3.5 stroke-[3]" />
-            </button>
-
-            {/* Badge Dimensione */}
-            <button
-              id="inline-size-badge-btn"
-              type="button"
-              onClick={() => setShowSizeMenu((prev) => !prev)}
-              className={`px-2.5 py-1 text-xs font-black font-mono transition-all rounded-lg flex items-center gap-1 cursor-pointer ${
-                showSizeMenu ? 'bg-black text-white' : 'text-black hover:bg-[#FFD700]'
-              }`}
-              title="Apri selettore misure rapide"
-            >
-              <span>{selectedElement.fontSize || 48}px</span>
-              <Sliders className="w-3 h-3 opacity-70" />
-            </button>
-
-            {/* Tasto + */}
-            <button
-              id="inline-size-inc-btn"
-              type="button"
-              onClick={() => {
-                const curr = selectedElement.fontSize || 48;
-                handleFontSizeChange(curr + 4);
-              }}
-              className="w-7 h-7 flex items-center justify-center bg-white hover:bg-[#33FFBB] rounded-lg border border-black text-black transition-all active:scale-90 cursor-pointer font-black"
-              title="Aumenta dimensione (+4px)"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            </button>
-
-            {/* MENU A COMPARSA DIMENSIONI RAPIDE */}
-            {showSizeMenu && (
-              <div
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white border-3 border-black rounded-2xl p-3.5 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-[120] flex flex-col gap-3 min-w-[260px]"
-              >
-                <div className="flex items-center justify-between text-xs font-black uppercase text-black">
-                  <span>Dimensione Carattere</span>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-[#FFD700] px-2 py-0.5 rounded-lg border border-black font-mono text-xs font-black">
-                      {selectedElement.fontSize || 48}px
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowSizeMenu(false)}
-                      className="p-1 hover:bg-neutral-200 rounded-lg cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Slider continuo */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-neutral-500">12</span>
-                  <input
-                    type="range"
-                    min="12"
-                    max="160"
-                    value={selectedElement.fontSize || 48}
-                    onChange={(e) => handleFontSizeChange(Number(e.target.value))}
-                    className="w-full accent-black h-2.5 bg-neutral-200 rounded-lg border border-black cursor-pointer"
-                  />
-                  <span className="text-[11px] font-bold text-neutral-500">160</span>
-                </div>
-
-                {/* Preset di dimensioni */}
-                <div className="pt-2 border-t-2 border-neutral-100">
-                  <div className="text-[10px] font-black uppercase text-neutral-500 mb-1.5">Preset Rapidi</div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {PRESET_FONT_SIZES.map((size) => (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => handleFontSizeChange(size)}
-                        className={`py-1 text-xs font-bold rounded-lg border-2 transition-all cursor-pointer ${
-                          (selectedElement.fontSize || 48) === size
-                            ? 'bg-black text-white border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                            : 'bg-[#F4F3ED] text-black border-neutral-300 hover:bg-[#FFD700] hover:border-black'
-                        }`}
-                      >
-                        {size}px
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="w-[2px] h-6 bg-black/20" />
-
-          {/* 3. Rotazione (+15°, -15°, Reset) */}
-          <div className="flex items-center bg-[#F4F3ED] border-2 border-black rounded-xl p-0.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-            <button
-              type="button"
-              onClick={() => {
-                const curr = selectedElement.rotation || 0;
-                onUpdateElement(selectedElement.id, { rotation: (curr - 15) % 360 });
-              }}
-              className="p-1.5 hover:bg-[#FFD700] rounded-lg text-black transition-colors cursor-pointer"
-              title="Ruota -15°"
-            >
-              <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-
-            <span className="px-2 text-xs font-black font-mono">
-              {selectedElement.rotation || 0}°
-            </span>
-
-            <button
-              type="button"
-              onClick={() => {
-                const curr = selectedElement.rotation || 0;
-                onUpdateElement(selectedElement.id, { rotation: (curr + 15) % 360 });
-              }}
-              className="p-1.5 hover:bg-[#FFD700] rounded-lg text-black transition-colors cursor-pointer"
-              title="Ruota +15°"
-            >
-              <RotateCw className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-
-            {selectedElement.rotation !== 0 && (
-              <button
-                type="button"
-                onClick={() => onUpdateElement(selectedElement.id, { rotation: 0 })}
-                className="ml-1 px-1.5 py-0.5 bg-[#FFD700] border border-black rounded-md text-[10px] font-black hover:scale-105 cursor-pointer"
-                title="Azzera Rotazione"
-              >
-                0°
-              </button>
-            )}
-          </div>
-
-          <div className="w-[2px] h-6 bg-black/20" />
-
-          {/* 4. Centratura X e Y */}
-          <div className="flex items-center gap-1">
-            <button
-              id="inline-center-x-btn"
-              type="button"
-              onClick={() => onUpdateElement(selectedElement.id, { x: 50 })}
-              className="p-2 bg-[#F4F3ED] hover:bg-[#FFD700] border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
-              title="Centra Orizzontalmente (50%)"
-            >
-              <AlignCenter className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-            <button
-              id="inline-center-y-btn"
-              type="button"
-              onClick={() => onUpdateElement(selectedElement.id, { y: 50 })}
-              className="p-2 bg-[#F4F3ED] hover:bg-[#FFD700] border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
-              title="Centra Verticalmente (50%)"
-            >
-              <AlignVerticalSpaceAround className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          </div>
-
-          <div className="w-[2px] h-6 bg-black/20" />
-
-          {/* 5. Duplica */}
-          <button
-            id="inline-dup-btn"
-            type="button"
-            onClick={() => onDuplicateElement(selectedElement.id)}
-            className="p-2 bg-[#F4F3ED] hover:bg-[#33FFBB] border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
-            title="Duplica Scritta"
-          >
-            <Copy className="w-3.5 h-3.5 stroke-[2.5]" />
-          </button>
-
-          {/* 6. Livelli Su / Giù */}
-          <div className="flex items-center border-2 border-black rounded-xl bg-[#F4F3ED] overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-            <button
-              id="inline-layer-up-btn"
-              type="button"
-              onClick={() => onReorderElement(selectedElement.id, 'up')}
-              className="p-1.5 hover:bg-[#FFD700] text-black transition-colors cursor-pointer"
-              title="Porta Avanti"
-            >
-              <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-            <div className="w-[1.5px] h-4 bg-black/30" />
-            <button
-              id="inline-layer-down-btn"
-              type="button"
-              onClick={() => onReorderElement(selectedElement.id, 'down')}
-              className="p-1.5 hover:bg-[#FFD700] text-black transition-colors cursor-pointer"
-              title="Porta Indietro"
-            >
-              <ArrowDown className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          </div>
-
-          <div className="w-[2px] h-6 bg-black/20" />
-
-          {/* 7. Elimina */}
-          <button
-            id="inline-del-btn"
-            type="button"
-            onClick={() => onDeleteElement(selectedElement.id)}
-            className="p-2 bg-[#F4F3ED] hover:bg-[#FF3366] hover:text-white border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
-            title="Elimina Elemento"
-          >
-            <Trash2 className="w-3.5 h-3.5 stroke-[2.5]" />
-          </button>
-        </div>
-      )}
     </div>
   );
 };

@@ -34,12 +34,22 @@ import {
   Instagram,
   Square,
   Maximize2,
+  Minimize2,
   Sliders,
   ChevronDown,
+  ChevronUp,
   RotateCw,
   RotateCcw,
   Youtube,
   Share2,
+  Copy,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  AlignVerticalSpaceAround,
+  Minus,
+  Plus,
+  X,
 } from 'lucide-react';
 
 interface SidebarControlsProps {
@@ -51,6 +61,9 @@ interface SidebarControlsProps {
   onSelectFormat: (format: CanvasFormat) => void;
   onApplyTemplate: (template: TemplatePreset) => void;
   onApplyStylePreset: (style: StylePreset) => void;
+  onDuplicateElement?: (id: string) => void;
+  onDeleteElement?: (id: string) => void;
+  onReorderElement?: (id: string, direction: 'up' | 'down') => void;
 }
 
 type TabType = 'text' | 'effects' | 'animations' | 'background' | 'templates';
@@ -64,10 +77,17 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onSelectFormat,
   onApplyTemplate,
   onApplyStylePreset,
+  onDuplicateElement,
+  onDeleteElement,
+  onReorderElement,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('text');
   const [fontSearch, setFontSearch] = useState('');
   const [fontCategory, setFontCategory] = useState<string>('Tutti');
+  const [panelMode, setPanelMode] = useState<'normal' | 'expanded' | 'compact'>('normal');
+  const [showSizeMenu, setShowSizeMenu] = useState<boolean>(false);
+
+  const PRESET_FONT_SIZES = [18, 24, 32, 40, 48, 56, 64, 76, 92, 112, 136];
 
   const filteredFonts = FONTS_LIST.filter((f) => {
     const matchesSearch = f.name.toLowerCase().includes(fontSearch.toLowerCase());
@@ -95,78 +115,382 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   return (
     <aside
       id="sidebar-inspector"
-      className="w-full lg:w-96 border-l-4 border-black bg-white flex flex-col h-[calc(100vh-4rem)] overflow-hidden select-none"
+      className={`w-full border-t-4 border-black bg-white flex flex-col shrink-0 select-none transition-all duration-200 z-30 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] ${
+        panelMode === 'compact'
+          ? 'h-13'
+          : panelMode === 'expanded'
+          ? 'h-[64vh] max-h-[560px]'
+          : 'h-72 sm:h-80 md:h-88'
+      }`}
     >
-      {/* Top Tabs */}
-      <div className="flex border-b-4 border-black bg-[#FDFCF5] p-2 gap-1.5 overflow-x-auto">
-        <button
-          id="tab-btn-text"
-          onClick={() => setActiveTab('text')}
-          className={`flex-1 min-w-[65px] py-2 px-2 rounded-xl text-xs font-black flex flex-col sm:flex-row items-center justify-center gap-1.5 border-2 border-black transition-all ${
-            activeTab === 'text'
-              ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-          }`}
-        >
-          <Type className={`w-4 h-4 stroke-[2.5] ${activeTab === 'text' ? 'text-[#33FFBB]' : 'text-black'}`} />
-          <span>Testo</span>
-        </button>
+      {/* Top Tabs and Mode Toggle */}
+      <div className="flex border-b-4 border-black bg-[#FDFCF5] px-2 py-1.5 gap-1.5 items-center justify-between overflow-x-auto shrink-0">
+        <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
+          <button
+            id="tab-btn-text"
+            onClick={() => {
+              setActiveTab('text');
+              if (panelMode === 'compact') setPanelMode('normal');
+            }}
+            className={`min-w-[65px] sm:min-w-[80px] py-1.5 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 border-black transition-all ${
+              activeTab === 'text' && panelMode !== 'compact'
+                ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+                : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+            }`}
+          >
+            <Type className={`w-4 h-4 stroke-[2.5] ${activeTab === 'text' && panelMode !== 'compact' ? 'text-[#33FFBB]' : 'text-black'}`} />
+            <span>Testo</span>
+          </button>
 
-        <button
-          id="tab-btn-effects"
-          onClick={() => setActiveTab('effects')}
-          className={`flex-1 min-w-[65px] py-2 px-2 rounded-xl text-xs font-black flex flex-col sm:flex-row items-center justify-center gap-1.5 border-2 border-black transition-all ${
-            activeTab === 'effects'
-              ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-          }`}
-        >
-          <Sparkles className={`w-4 h-4 stroke-[2.5] ${activeTab === 'effects' ? 'text-[#FF3366]' : 'text-black'}`} />
-          <span>Effetti</span>
-        </button>
+          <button
+            id="tab-btn-effects"
+            onClick={() => {
+              setActiveTab('effects');
+              if (panelMode === 'compact') setPanelMode('normal');
+            }}
+            className={`min-w-[65px] sm:min-w-[80px] py-1.5 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 border-black transition-all ${
+              activeTab === 'effects' && panelMode !== 'compact'
+                ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+                : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+            }`}
+          >
+            <Sparkles className={`w-4 h-4 stroke-[2.5] ${activeTab === 'effects' && panelMode !== 'compact' ? 'text-[#FF3366]' : 'text-black'}`} />
+            <span>Effetti</span>
+          </button>
 
-        <button
-          id="tab-btn-animations"
-          onClick={() => setActiveTab('animations')}
-          className={`flex-1 min-w-[65px] py-2 px-2 rounded-xl text-xs font-black flex flex-col sm:flex-row items-center justify-center gap-1.5 border-2 border-black transition-all ${
-            activeTab === 'animations'
-              ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-          }`}
-        >
-          <Zap className={`w-4 h-4 stroke-[2.5] ${activeTab === 'animations' ? 'text-[#FFD700]' : 'text-black'}`} />
-          <span>Animazioni</span>
-        </button>
+          <button
+            id="tab-btn-animations"
+            onClick={() => {
+              setActiveTab('animations');
+              if (panelMode === 'compact') setPanelMode('normal');
+            }}
+            className={`min-w-[65px] sm:min-w-[80px] py-1.5 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 border-black transition-all ${
+              activeTab === 'animations' && panelMode !== 'compact'
+                ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+                : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+            }`}
+          >
+            <Zap className={`w-4 h-4 stroke-[2.5] ${activeTab === 'animations' && panelMode !== 'compact' ? 'text-[#FFD700]' : 'text-black'}`} />
+            <span>Animazioni</span>
+          </button>
 
-        <button
-          id="tab-btn-bg"
-          onClick={() => setActiveTab('background')}
-          className={`flex-1 min-w-[65px] py-2 px-2 rounded-xl text-xs font-black flex flex-col sm:flex-row items-center justify-center gap-1.5 border-2 border-black transition-all ${
-            activeTab === 'background'
-              ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-          }`}
-        >
-          <Palette className={`w-4 h-4 stroke-[2.5] ${activeTab === 'background' ? 'text-[#33FFBB]' : 'text-black'}`} />
-          <span>Sfondo</span>
-        </button>
+          <button
+            id="tab-btn-bg"
+            onClick={() => {
+              setActiveTab('background');
+              if (panelMode === 'compact') setPanelMode('normal');
+            }}
+            className={`min-w-[65px] sm:min-w-[80px] py-1.5 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 border-black transition-all ${
+              activeTab === 'background' && panelMode !== 'compact'
+                ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+                : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+            }`}
+          >
+            <Palette className={`w-4 h-4 stroke-[2.5] ${activeTab === 'background' && panelMode !== 'compact' ? 'text-[#33FFBB]' : 'text-black'}`} />
+            <span>Sfondo</span>
+          </button>
 
-        <button
-          id="tab-btn-templates"
-          onClick={() => setActiveTab('templates')}
-          className={`flex-1 min-w-[65px] py-2 px-2 rounded-xl text-xs font-black flex flex-col sm:flex-row items-center justify-center gap-1.5 border-2 border-black transition-all ${
-            activeTab === 'templates'
-              ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-          }`}
-        >
-          <LayoutTemplate className={`w-4 h-4 stroke-[2.5] ${activeTab === 'templates' ? 'text-[#FF3366]' : 'text-black'}`} />
-          <span>Modelli</span>
-        </button>
+          <button
+            id="tab-btn-templates"
+            onClick={() => {
+              setActiveTab('templates');
+              if (panelMode === 'compact') setPanelMode('normal');
+            }}
+            className={`min-w-[65px] sm:min-w-[80px] py-1.5 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 border-black transition-all ${
+              activeTab === 'templates' && panelMode !== 'compact'
+                ? 'bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+                : 'bg-white text-black hover:bg-[#FFF9E6] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+            }`}
+          >
+            <LayoutTemplate className={`w-4 h-4 stroke-[2.5] ${activeTab === 'templates' && panelMode !== 'compact' ? 'text-[#FF3366]' : 'text-black'}`} />
+            <span>Modelli</span>
+          </button>
+        </div>
+
+        {/* Panel Height Controls */}
+        <div className="flex items-center gap-1 shrink-0 ml-1">
+          {panelMode === 'compact' ? (
+            <button
+              type="button"
+              id="panel-expand-btn"
+              onClick={() => setPanelMode('normal')}
+              className="px-2 py-1 bg-[#FFD700] hover:bg-[#FFE55A] border-2 border-black rounded-xl text-xs font-black flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer"
+              title="Apri pannello strumenti"
+            >
+              <ChevronUp className="w-4 h-4 stroke-[3]" />
+              <span className="hidden sm:inline">Strumenti</span>
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                id="panel-toggle-expanded-btn"
+                onClick={() => setPanelMode(panelMode === 'expanded' ? 'normal' : 'expanded')}
+                className="p-1.5 bg-white hover:bg-[#FFF9E6] border-2 border-black rounded-xl text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer"
+                title={panelMode === 'expanded' ? 'Riduci altezza' : 'Massimizza strumenti'}
+              >
+                {panelMode === 'expanded' ? (
+                  <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                ) : (
+                  <Maximize2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                )}
+              </button>
+              <button
+                type="button"
+                id="panel-collapse-btn"
+                onClick={() => setPanelMode('compact')}
+                className="p-1.5 bg-white hover:bg-[#FF3366] hover:text-white border-2 border-black rounded-xl text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer"
+                title="Comprimi pannello (vista canvas ampia)"
+              >
+                <ChevronDown className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Tab Content Panel */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-[#FDFCF5]">
+      {/* QUICK ACTION BAR WITH SIZE MENU WHEN AN ELEMENT IS SELECTED */}
+      {selectedElement && panelMode !== 'compact' && (
+        <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 bg-[#F4F3ED] border-b-2 border-black overflow-x-auto shrink-0">
+          {/* Quick text inline input */}
+          <div className="flex items-center gap-1.5 bg-white border-2 border-black rounded-xl px-2.5 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
+            <Type className="w-3.5 h-3.5 stroke-[2.5] text-black shrink-0" />
+            <input
+              id="quickbar-text-input"
+              type="text"
+              value={selectedElement.text || ''}
+              onChange={(e) => onUpdateElement(selectedElement.id, { text: e.target.value })}
+              placeholder="Modifica testo..."
+              className="bg-transparent font-bold text-xs text-black outline-none w-24 sm:w-36 placeholder-neutral-400"
+            />
+          </div>
+
+          <div className="w-[1.5px] h-5 bg-black/20 shrink-0" />
+
+          {/* MENÙ GRANDEZZA (- / [size]px / + con popup slider e preset) */}
+          <div className="flex items-center bg-white border-2 border-black rounded-xl p-0.5 relative shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
+            {/* Tasto - */}
+            <button
+              id="quickbar-size-dec-btn"
+              type="button"
+              onClick={() => {
+                const curr = selectedElement.fontSize || 48;
+                onUpdateElement(selectedElement.id, { fontSize: Math.max(12, curr - 4) });
+              }}
+              className="w-7 h-7 flex items-center justify-center bg-neutral-100 hover:bg-[#FF3366] hover:text-white rounded-lg border border-black text-black transition-all active:scale-90 cursor-pointer font-black shrink-0"
+              title="Riduci grandezza (-4px)"
+            >
+              <Minus className="w-3.5 h-3.5 stroke-[3]" />
+            </button>
+
+            {/* Badge Dimensione / Tasto Menù Grandezza */}
+            <button
+              id="quickbar-size-badge-btn"
+              type="button"
+              onClick={() => setShowSizeMenu((prev) => !prev)}
+              className={`px-2.5 py-1 text-xs font-black font-mono transition-all rounded-lg flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                showSizeMenu ? 'bg-black text-white' : 'text-black hover:bg-[#FFD700]'
+              }`}
+              title="Apri menù grandezza testo"
+            >
+              <span>{selectedElement.fontSize || 48}px</span>
+              <Sliders className="w-3 h-3 opacity-80" />
+            </button>
+
+            {/* Tasto + */}
+            <button
+              id="quickbar-size-inc-btn"
+              type="button"
+              onClick={() => {
+                const curr = selectedElement.fontSize || 48;
+                onUpdateElement(selectedElement.id, { fontSize: Math.min(180, curr + 4) });
+              }}
+              className="w-7 h-7 flex items-center justify-center bg-neutral-100 hover:bg-[#33FFBB] rounded-lg border border-black text-black transition-all active:scale-90 cursor-pointer font-black shrink-0"
+              title="Aumenta grandezza (+4px)"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            </button>
+
+            {/* POPUP MENU GRANDEZZA */}
+            {showSizeMenu && (
+              <div
+                className="absolute bottom-full left-0 mb-2 bg-white border-3 border-black rounded-2xl p-3.5 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-[120] flex flex-col gap-3 min-w-[280px]"
+              >
+                <div className="flex items-center justify-between text-xs font-black uppercase text-black">
+                  <span className="flex items-center gap-1">
+                    <Sliders className="w-3.5 h-3.5" /> Menù Grandezza
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-[#FFD700] px-2 py-0.5 rounded-lg border border-black font-mono text-xs font-black">
+                      {selectedElement.fontSize || 48}px
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSizeMenu(false)}
+                      className="p-1 hover:bg-neutral-200 rounded-lg cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slider continuo */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-neutral-500">12</span>
+                  <input
+                    type="range"
+                    min="12"
+                    max="160"
+                    value={selectedElement.fontSize || 48}
+                    onChange={(e) =>
+                      onUpdateElement(selectedElement.id, { fontSize: Number(e.target.value) })
+                    }
+                    className="w-full accent-black h-2.5 bg-neutral-200 rounded-lg border border-black cursor-pointer"
+                  />
+                  <span className="text-[11px] font-bold text-neutral-500">160</span>
+                </div>
+
+                {/* Preset rapidi grandezza */}
+                <div className="pt-2 border-t-2 border-neutral-100">
+                  <div className="text-[10px] font-black uppercase text-neutral-500 mb-1.5">Misure Rapide</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {PRESET_FONT_SIZES.map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() =>
+                          onUpdateElement(selectedElement.id, { fontSize: size })
+                        }
+                        className={`py-1 text-xs font-bold rounded-lg border-2 transition-all cursor-pointer ${
+                          (selectedElement.fontSize || 48) === size
+                            ? 'bg-black text-white border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                            : 'bg-[#F4F3ED] text-black border-neutral-300 hover:bg-[#FFD700] hover:border-black'
+                        }`}
+                      >
+                        {size}px
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="w-[1.5px] h-5 bg-black/20 shrink-0" />
+
+          {/* Centratura */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => onUpdateElement(selectedElement.id, { x: 50 })}
+              className="p-1.5 bg-white hover:bg-[#FFD700] border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+              title="Centra Orizzontalmente"
+            >
+              <AlignCenter className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onUpdateElement(selectedElement.id, { y: 50 })}
+              className="p-1.5 bg-white hover:bg-[#FFD700] border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+              title="Centra Verticalmente"
+            >
+              <AlignVerticalSpaceAround className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          </div>
+
+          <div className="w-[1.5px] h-5 bg-black/20 shrink-0" />
+
+          {/* Rotazione */}
+          <div className="flex items-center bg-white border-2 border-black rounded-xl p-0.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                const curr = selectedElement.rotation || 0;
+                onUpdateElement(selectedElement.id, { rotation: (curr - 15) % 360 });
+              }}
+              className="p-1 hover:bg-[#FFD700] rounded-lg text-black transition-colors cursor-pointer"
+              title="Ruota -15°"
+            >
+              <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+            <span className="px-1 text-xs font-black font-mono">
+              {selectedElement.rotation || 0}°
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const curr = selectedElement.rotation || 0;
+                onUpdateElement(selectedElement.id, { rotation: (curr + 15) % 360 });
+              }}
+              className="p-1 hover:bg-[#FFD700] rounded-lg text-black transition-colors cursor-pointer"
+              title="Ruota +15°"
+            >
+              <RotateCw className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+            {selectedElement.rotation !== 0 && (
+              <button
+                type="button"
+                onClick={() => onUpdateElement(selectedElement.id, { rotation: 0 })}
+                className="ml-0.5 px-1 py-0.5 bg-[#FFD700] border border-black rounded text-[10px] font-black cursor-pointer"
+                title="Azzera Rotazione"
+              >
+                0°
+              </button>
+            )}
+          </div>
+
+          {/* Duplica */}
+          {onDuplicateElement && (
+            <button
+              type="button"
+              onClick={() => onDuplicateElement(selectedElement.id)}
+              className="p-1.5 bg-white hover:bg-[#33FFBB] border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer shrink-0"
+              title="Duplica Scritta"
+            >
+              <Copy className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          )}
+
+          {/* Livelli */}
+          {onReorderElement && (
+            <div className="flex items-center border-2 border-black rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
+              <button
+                type="button"
+                onClick={() => onReorderElement(selectedElement.id, 'up')}
+                className="p-1 hover:bg-[#FFD700] text-black cursor-pointer"
+                title="Porta Avanti"
+              >
+                <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+              <div className="w-[1px] h-4 bg-black/30" />
+              <button
+                type="button"
+                onClick={() => onReorderElement(selectedElement.id, 'down')}
+                className="p-1 hover:bg-[#FFD700] text-black cursor-pointer"
+                title="Porta Indietro"
+              >
+                <ArrowDown className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            </div>
+          )}
+
+          {/* Elimina */}
+          {onDeleteElement && (
+            <button
+              type="button"
+              onClick={() => onDeleteElement(selectedElement.id)}
+              className="p-1.5 bg-white hover:bg-[#FF3366] hover:text-white border-2 border-black rounded-xl text-black transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer ml-auto shrink-0"
+              title="Elimina Elemento"
+            >
+              <Trash2 className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Tab Content Panel (visible when not compact) */}
+      {panelMode !== 'compact' && (
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-[#FDFCF5]">
         {/* ===================== TAB 1: TEXT & FONTS ===================== */}
         {activeTab === 'text' && (
           <div className="space-y-5">
@@ -174,16 +498,96 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               <>
                 {/* Text Content Input */}
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-black mb-1.5">
-                    Contenuto Testo
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-black uppercase tracking-wider text-black">
+                      Contenuto Testo & Sticker
+                    </label>
+                    <span className="text-[10px] font-black text-black bg-[#FFF9E6] border border-black px-1.5 py-0.5 rounded shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+                      📱 Da Tastiera Cellulare
+                    </span>
+                  </div>
                   <textarea
                     id="sidebar-text-content-input"
                     value={selectedElement.text || ''}
                     onChange={(e) => onUpdateElement(selectedElement.id, { text: e.target.value })}
-                    className="w-full bg-white border-2 border-black rounded-xl p-3 text-sm text-black font-bold placeholder-neutral-400 focus:outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] resize-none h-20"
-                    placeholder="Scrivi qui il tuo testo..."
+                    className="w-full bg-white border-2 border-black rounded-xl p-3 text-sm text-black font-bold placeholder-neutral-400 focus:outline-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] resize-y min-h-[72px]"
+                    placeholder="Scrivi qui o inserisci sticker ed emoji dalla tastiera del cellulare..."
                   />
+
+                  {/* Element Quick Actions */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {onDuplicateElement && (
+                      <button
+                        type="button"
+                        id="sidebar-duplicate-btn"
+                        onClick={() => onDuplicateElement(selectedElement.id)}
+                        className="py-1 px-2.5 bg-white hover:bg-[#33FFBB] border-2 border-black rounded-xl text-xs font-black flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                        title="Duplica Scritta"
+                      >
+                        <Copy className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>Duplica</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      id="sidebar-center-x-btn"
+                      onClick={() => onUpdateElement(selectedElement.id, { x: 50 })}
+                      className="py-1 px-2 bg-white hover:bg-[#FFD700] border-2 border-black rounded-xl text-xs font-black flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                      title="Centra Orizzontalmente"
+                    >
+                      <AlignCenter className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Centra X</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      id="sidebar-center-y-btn"
+                      onClick={() => onUpdateElement(selectedElement.id, { y: 50 })}
+                      className="py-1 px-2 bg-white hover:bg-[#FFD700] border-2 border-black rounded-xl text-xs font-black flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                      title="Centra Verticalmente"
+                    >
+                      <AlignVerticalSpaceAround className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Centra Y</span>
+                    </button>
+
+                    {onReorderElement && (
+                      <div className="flex items-center border-2 border-black rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <button
+                          type="button"
+                          id="sidebar-layer-up-btn"
+                          onClick={() => onReorderElement(selectedElement.id, 'up')}
+                          className="p-1 hover:bg-[#FFD700] text-black cursor-pointer"
+                          title="Porta Avanti"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
+                        </button>
+                        <div className="w-[1.5px] h-4 bg-black/30" />
+                        <button
+                          type="button"
+                          id="sidebar-layer-down-btn"
+                          onClick={() => onReorderElement(selectedElement.id, 'down')}
+                          className="p-1 hover:bg-[#FFD700] text-black cursor-pointer"
+                          title="Porta Indietro"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5 stroke-[2.5]" />
+                        </button>
+                      </div>
+                    )}
+
+                    {onDeleteElement && (
+                      <button
+                        type="button"
+                        id="sidebar-delete-btn"
+                        onClick={() => onDeleteElement(selectedElement.id)}
+                        className="py-1 px-2.5 bg-white hover:bg-[#FF3366] hover:text-white border-2 border-black rounded-xl text-xs font-black flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer ml-auto"
+                        title="Elimina Elemento"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>Elimina</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Font Selector with Live Preview */}
@@ -1057,6 +1461,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           </div>
         )}
       </div>
+      )}
     </aside>
   );
 };

@@ -9,6 +9,25 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
+const EMOJI_REGEX = /(\p{Extended_Pictographic}+|\p{Emoji_Presentation}+)/gu;
+
+function formatHtmlText(text: string, isGradientOrOutline: boolean): string {
+  if (!text) return '';
+  if (!isGradientOrOutline) return escapeHtml(text);
+
+  const parts = text.split(EMOJI_REGEX);
+  return parts
+    .map((part) => {
+      const isEmoji = EMOJI_REGEX.test(part);
+      EMOJI_REGEX.lastIndex = 0;
+      if (isEmoji) {
+        return `<span style="-webkit-text-fill-color: initial; -webkit-background-clip: initial; -webkit-text-stroke: 0px transparent; background-image: none; display: inline-block;">${part}</span>`;
+      }
+      return escapeHtml(part);
+    })
+    .join('');
+}
+
 export function generateStandaloneHtml(
   elements: CanvasElement[],
   background: CanvasBackground,
@@ -27,23 +46,25 @@ export function generateStandaloneHtml(
       ? 380
       : 450;
 
-  // Background CSS strictly preserved
+  // Background CSS strictly preserved with explicit background-color and background
   let backgroundCss = '';
   if (background.type === 'transparent') {
-    backgroundCss = 'background: transparent;';
+    backgroundCss = 'background: transparent !important; background-color: transparent !important;';
   } else if (background.type === 'solid') {
-    backgroundCss = `background-color: ${background.color || '#0D0D11'};`;
+    const col = background.color || '#0D0D11';
+    backgroundCss = `background: ${col} !important; background-color: ${col} !important;`;
   } else if (background.type === 'gradient') {
     const angle = background.gradientAngle ?? 180;
-    const startColor = background.color || '#0D0D11';
+    const startColor = background.color || '#FF007F';
     const endColor = background.gradientEnd || startColor;
     if (background.gradientType === 'radial') {
-      backgroundCss = `background: radial-gradient(circle at center, ${startColor}, ${endColor});`;
+      backgroundCss = `background: radial-gradient(circle at center, ${startColor}, ${endColor}) !important; background-color: ${startColor} !important;`;
     } else {
-      backgroundCss = `background: linear-gradient(${angle}deg, ${startColor}, ${endColor});`;
+      backgroundCss = `background: linear-gradient(${angle}deg, ${startColor}, ${endColor}) !important; background-color: ${startColor} !important;`;
     }
   } else {
-    backgroundCss = `background-color: ${background.color || '#0D0D11'};`;
+    const col = background.color || '#0D0D11';
+    backgroundCss = `background: ${col} !important; background-color: ${col} !important;`;
   }
 
   // Pattern overlay (rendered as an isolated layer inside the canvas to never override background colors/gradients)
@@ -96,7 +117,7 @@ export function generateStandaloneHtml(
     }
   }
 
-  // Generate Keyframe Animations (scaled smoothly in cqw / relative units)
+  // Keyframe Animations
   const animationsCss = `
     @keyframes anim-pulse {
       0%, 100% { transform: scale(1); }
@@ -163,6 +184,12 @@ export function generateStandaloneHtml(
         const fontSizeCqw = (((el.fontSize || 48) / refWidth) * 100).toFixed(4);
         const letterSpacingCqw = (((el.letterSpacing || 0) / refWidth) * 100).toFixed(4);
         const strokeWidthCqw = (((el.strokeWidth || 3) / refWidth) * 100).toFixed(4);
+
+        const isSpecialEffect =
+          el.effect === 'gradient' ||
+          el.effect === 'gold' ||
+          el.effect === 'chrome' ||
+          el.effect === 'outline';
 
         let effectCss = '';
         if (el.effect === 'neon') {
@@ -281,7 +308,7 @@ export function generateStandaloneHtml(
             ? `-webkit-text-stroke: ${strokeWidthCqw}cqw ${el.strokeColor || '#000000'};`
             : '';
 
-        const escapedText = escapeHtml(el.text || '');
+        const formattedContent = formatHtmlText(el.text || '', isSpecialEffect);
 
         return `
           <div
@@ -301,9 +328,11 @@ export function generateStandaloneHtml(
               class="canvas-element-inner ${animClass}"
               style="
                 font-family: ${el.fontFamily || "'Montserrat', sans-serif"};
+                font-size: calc((var(--cw, ${refWidth}px) / ${refWidth}) * ${el.fontSize || 48}px);
                 font-size: ${fontSizeCqw}cqw;
                 font-weight: ${el.fontWeight || 'normal'};
                 font-style: ${el.fontStyle || 'normal'};
+                letter-spacing: calc((var(--cw, ${refWidth}px) / ${refWidth}) * ${el.letterSpacing || 0}px);
                 letter-spacing: ${letterSpacingCqw}cqw;
                 line-height: ${el.lineHeight || 1.2};
                 text-align: ${el.textAlign || 'center'};
@@ -313,7 +342,7 @@ export function generateStandaloneHtml(
                 ${strokeStyles}
                 ${effectCss}
               "
-            >${escapedText}</div>
+            >${formattedContent}</div>
           </div>
         `;
       }
@@ -356,23 +385,24 @@ export function generateStandaloneHtml(
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 20px;
       box-sizing: border-box;
     }
     .graphic-canvas {
       position: relative;
       /* Exactly enforce aspect ratio and dimensions */
       aspect-ratio: ${format.width} / ${format.height};
-      width: min(calc((100vh - 48px) * (${format.width} / ${format.height})), calc(100vw - 48px), ${format.width}px);
+      width: min(calc((100vh - 40px) * (${format.width} / ${format.height})), calc(100vw - 40px));
       height: auto;
-      max-height: calc(100vh - 48px);
-      max-width: calc(100vw - 48px);
+      max-height: calc(100vh - 40px);
+      max-width: calc(100vw - 40px);
       container-type: inline-size;
       container-name: graphic;
       overflow: hidden;
       border-radius: 16px;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
       user-select: none;
+      flex-shrink: 0;
       ${backgroundCss}
     }
     .canvas-element {
@@ -393,11 +423,34 @@ export function generateStandaloneHtml(
 </head>
 <body>
   <div class="graphic-stage-wrapper">
-    <div class="graphic-canvas" id="graphic-canvas">
+    <div class="graphic-canvas" id="graphic-canvas" style="${backgroundCss}">
       ${patternOverlayHtml}
       ${elementsHtml}
     </div>
   </div>
+
+  <script>
+    (function() {
+      function syncSize() {
+        var canvas = document.getElementById('graphic-canvas');
+        if (canvas) {
+          var rect = canvas.getBoundingClientRect();
+          if (rect.width > 0) {
+            canvas.style.setProperty('--cw', rect.width + 'px');
+          }
+        }
+      }
+      window.addEventListener('resize', syncSize);
+      window.addEventListener('orientationchange', syncSize);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', syncSize);
+      } else {
+        syncSize();
+      }
+      setTimeout(syncSize, 50);
+      setTimeout(syncSize, 250);
+    })();
+  </script>
 </body>
 </html>`;
 }
